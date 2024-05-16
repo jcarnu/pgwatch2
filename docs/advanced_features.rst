@@ -20,7 +20,7 @@ type and scope (cluster name) information. A sample config (for Config DB based 
 ::
 
     {
-      "dcs_type": "etcd",
+      "dcs_type": "etcd", # etc is for etcd api v2, use etcd3 for api v3 instead
       "dcs_endpoints": ["http://127.0.0.1:2379"],
       "scope": "batman",
       "namespace": "/service/"

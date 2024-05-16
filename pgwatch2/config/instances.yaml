@@ -34,7 +34,7 @@
   password:
   sslmode: disable
   host_config:    # used for storing patroni connect info (dbtype=patroni|patroni-continuous-discovery) or log parsing settings
-    dcs_type: etcd
+    dcs_type: etcd # use etcd for etcd v2 api, and etcd3 for etcd v3 api
     dcs_endpoints: ["http://localhost:2379"]
     scope: batman
     namespace: /service/
