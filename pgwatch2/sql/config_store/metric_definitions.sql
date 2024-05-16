@@ -1833,6 +1833,7 @@ $sql$
 SELECT
   (extract(epoch from now()) * 1e9)::int8 as epoch_ns,
   application_name as tag_application_name,
+  usename AS tag_usename,
   concat(coalesce(client_addr::text, client_hostname), '_', client_port::text) as tag_client_info,
   coalesce(pg_wal_lsn_diff(case when pg_is_in_recovery() then pg_last_wal_receive_lsn() else pg_current_wal_lsn() end, sent_lsn)::int8, 0) as sent_lag_b,
   coalesce(pg_wal_lsn_diff(case when pg_is_in_recovery() then pg_last_wal_receive_lsn() else pg_current_wal_lsn() end, write_lsn)::int8, 0) as write_lag_b,
@@ -6840,6 +6841,16 @@ values (
 false
 );
 
+/* pgbouncer_clients - assumes also that monitored DB has type 'pgbouncer' */
+insert into pgwatch2.metric(m_name, m_pg_version_from, m_sql, m_comment, m_is_helper)
+values (
+'pgbouncer_clients',
+0,
+'show clients',
+'pgbouncer clients',
+false
+);
+
 /* pgpool_stats - assumes also that monitored DB has type 'pgpool' */
 insert into pgwatch2.metric(m_name, m_pg_version_from, m_sql, m_comment, m_is_helper)
 values (
@@ -6929,8 +6940,10 @@ select
   coalesce(plugin, 'physical')::text as plugin,
   active,
   case when active then 0 else 1 end as non_active_int,
-  pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)::int8 as restart_lsn_lag_b,
-  pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn)::int8 as confirmed_flush_lsn_lag_b,
+  case when not pg_is_in_recovery() then pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn)::int8
+  else pg_wal_lsn_diff(pg_last_wal_replay_lsn(), restart_lsn)::int8 end as restart_lsn_lag_b,
+  case when not pg_is_in_recovery() then pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn)::int8
+  else pg_wal_lsn_diff(pg_last_wal_replay_lsn(), confirmed_flush_lsn)::int8 end as confirmed_flush_lsn_lag_b,
   greatest(age(xmin), age(catalog_xmin))::int8 as xmin_age_tx
 from
   pg_replication_slots;
@@ -8477,7 +8490,6 @@ and not exists (select * from pg_locks where relation = indexrelid and mode = 'A
 order by index_size_b desc
 limit 100;
 $sql$);
-
 
 /* Metric attributes */
 -- truncate pgwatch2.metric_attribute;
